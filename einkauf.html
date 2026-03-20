@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#fdf6f0">
+  <title>JANVIS · Einkauf ✨</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg:        #fdf6f0;
+      --rose:      #f2a8b8;
+      --rose-soft: #fce8ed;
+      --lavender:  #c9b8e8;
+      --lav-soft:  #ede8f8;
+      --mint:      #a8d5c2;
+      --mint-soft: #e2f4ee;
+      --peach:     #f5c9a0;
+      --text:      #4a3728;
+      --text-soft: #9c8276;
+      --shadow:    rgba(180,130,110,0.12);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; }
+    .blob { position:fixed; border-radius:50%; filter:blur(70px); pointer-events:none; z-index:0; opacity:0.4; }
+    .blob-1 { width:300px; height:300px; background:var(--mint);    top:-60px;   right:-60px; animation:drift1 12s ease-in-out infinite; }
+    .blob-2 { width:250px; height:250px; background:var(--lavender); bottom:80px; left:-60px;  animation:drift2 15s ease-in-out infinite; }
+    @keyframes drift1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-15px,20px)} }
+    @keyframes drift2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(15px,-15px)} }
+
+    #app { position:relative; z-index:1; max-width:480px; margin:0 auto; padding:0 20px 40px; }
+
+    header { display:flex; align-items:center; gap:12px; padding:22px 0 18px; animation:fadeDown 0.7s ease both; }
+    .back-btn { background:none; border:none; cursor:pointer; font-size:1.3rem; opacity:0.6; transition:opacity 0.2s; padding:4px; }
+    .back-btn:hover { opacity:1; }
+    .header-title { font-family:'Cormorant Garamond',serif; font-size:1.6rem; font-weight:600; }
+    .header-title span { color:var(--mint); font-style:italic; }
+    .item-count { margin-left:auto; background:var(--mint-soft); color:#4a8a72; border-radius:20px; padding:4px 12px; font-size:0.75rem; font-weight:500; }
+
+    /* Input area */
+    .input-card { background:rgba(255,255,255,0.8); backdrop-filter:blur(12px); border-radius:20px; padding:16px; box-shadow:0 3px 18px var(--shadow); margin-bottom:20px; animation:fadeUp 0.7s 0.1s ease both; }
+    .input-row { display:flex; gap:10px; align-items:center; }
+    .item-input { flex:1; padding:12px 16px; border:1.5px solid rgba(168,213,194,0.4); border-radius:14px; background:rgba(255,255,255,0.9); font-family:'DM Sans',sans-serif; font-size:0.95rem; color:var(--text); outline:none; transition:border-color 0.2s; }
+    .item-input:focus { border-color:var(--mint); box-shadow:0 0 0 3px rgba(168,213,194,0.15); }
+    .add-btn { padding:12px 18px; background:linear-gradient(135deg,var(--mint),#7ec4a8); border:none; border-radius:14px; color:#fff; font-family:'DM Sans',sans-serif; font-size:1.2rem; cursor:pointer; transition:all 0.2s; box-shadow:0 3px 12px rgba(168,213,194,0.4); }
+    .add-btn:hover { transform:translateY(-2px); box-shadow:0 6px 18px rgba(168,213,194,0.5); }
+    .add-btn:active { transform:scale(0.96); }
+
+    .mic-row { margin-top:10px; }
+    .mic-btn-small { width:100%; padding:11px; background:linear-gradient(135deg,var(--rose-soft),var(--lav-soft)); border:1.5px solid rgba(242,168,184,0.3); border-radius:14px; color:var(--text-soft); font-family:'DM Sans',sans-serif; font-size:0.82rem; font-weight:500; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:all 0.2s; }
+    .mic-btn-small:hover { border-color:var(--rose); color:var(--text); }
+    .mic-btn-small.listening { background:linear-gradient(135deg,#fce8ed,#ede8f8); border-color:var(--rose); color:var(--text); animation:listenPulse 1.5s ease-in-out infinite; }
+
+    /* Section titles */
+    .section-title { font-size:0.68rem; font-weight:500; letter-spacing:0.2em; text-transform:uppercase; color:var(--text-soft); margin:0 0 12px; display:flex; align-items:center; gap:10px; }
+    .section-title::after { content:''; flex:1; height:1px; background:linear-gradient(to right,rgba(180,130,110,0.2),transparent); }
+
+    /* List */
+    .list-section { animation:fadeUp 0.7s 0.2s ease both; }
+    .empty-state { text-align:center; padding:40px 20px; color:var(--text-soft); }
+    .empty-icon { font-size:2.5rem; margin-bottom:12px; }
+    .empty-text { font-family:'Cormorant Garamond',serif; font-size:1.1rem; }
+
+    .item-card { background:rgba(255,255,255,0.75); backdrop-filter:blur(10px); border-radius:16px; padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; gap:12px; box-shadow:0 2px 12px var(--shadow); border:1.5px solid rgba(255,255,255,0.8); transition:all 0.25s; animation:slideIn 0.3s ease both; }
+    .item-card.done { opacity:0.55; }
+    .item-card.done .item-text { text-decoration:line-through; color:var(--text-soft); }
+
+    .check-btn { width:26px; height:26px; border-radius:50%; border:2px solid rgba(168,213,194,0.6); background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; flex-shrink:0; font-size:0.8rem; }
+    .check-btn:hover { border-color:var(--mint); background:var(--mint-soft); }
+    .item-card.done .check-btn { background:var(--mint); border-color:var(--mint); }
+
+    .item-text { flex:1; font-size:0.95rem; font-weight:400; }
+    .item-time { font-size:0.68rem; color:var(--text-soft); }
+
+    .delete-btn { background:none; border:none; cursor:pointer; font-size:1rem; opacity:0.3; transition:opacity 0.2s; padding:4px; }
+    .delete-btn:hover { opacity:0.8; }
+
+    /* Clear done button */
+    .clear-btn { width:100%; margin-top:16px; padding:12px; background:transparent; border:1.5px dashed rgba(180,130,110,0.25); border-radius:14px; color:var(--text-soft); font-family:'DM Sans',sans-serif; font-size:0.82rem; cursor:pointer; transition:all 0.2s; }
+    .clear-btn:hover { border-color:var(--rose); color:var(--text); background:var(--rose-soft); }
+
+    .loading { text-align:center; padding:30px; color:var(--text-soft); font-size:0.85rem; }
+
+    @keyframes fadeDown { from{opacity:0;transform:translateY(-14px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeUp   { from{opacity:0;transform:translateY(18px)}  to{opacity:1;transform:translateY(0)} }
+    @keyframes slideIn  { from{opacity:0;transform:translateX(-12px)} to{opacity:1;transform:translateX(0)} }
+    @keyframes listenPulse { 0%,100%{box-shadow:0 0 0 rgba(242,168,184,0)} 50%{box-shadow:0 0 12px rgba(242,168,184,0.4)} }
+  </style>
+</head>
+<body>
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+
+<div id="app">
+  <header>
+    <button class="back-btn" onclick="window.location.href='app.html'">←</button>
+    <div class="header-title">Einkaufs<span>liste</span></div>
+    <div class="item-count" id="item-count">0 Artikel</div>
+  </header>
+
+  <!-- Input -->
+  <div class="input-card">
+    <div class="input-row">
+      <input class="item-input" id="item-input" type="text" placeholder="Artikel hinzufügen..." autocomplete="off">
+      <button class="add-btn" onclick="addItem()">+</button>
+    </div>
+    <div class="mic-row">
+      <button class="mic-btn-small" id="mic-btn" onclick="toggleMic()">
+        <span>🎤</span> <span id="mic-label">Per Sprache hinzufügen</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- List -->
+  <div class="list-section">
+    <div class="section-title">Deine Artikel</div>
+    <div id="list-container">
+      <div class="loading">Lade Liste...</div>
+    </div>
+    <button class="clear-btn" id="clear-btn" onclick="clearDone()" style="display:none">
+      ✓ Erledigte Artikel löschen
+    </button>
+  </div>
+</div>
+
+<script>
+  // ── SUPABASE ──────────────────────────────────────────────
+  // ⚠️ Publishable Key — sicher für Frontend. Alle anderen Keys (Claude, ElevenLabs) NIEMALS hier!
+  const { createClient } = supabase;
+  const sb = createClient(
+    'DEINE_SUPABASE_URL',     // Zeile 97 — z.B. https://xyz.supabase.co
+    'DEIN_PUBLISHABLE_KEY'    // Zeile 98 — sb_publishable_...
+  );
+
+  let userId = null;
+  let items  = [];
+
+  // ── AUTH CHECK ────────────────────────────────────────────
+  (async () => {
+    try {
+      const { data } = await sb.auth.getSession();
+      if (!data.session) return window.location.href = 'index.html';
+      userId = data.session.user.id;
+      loadItems();
+    } catch(e) { window.location.href = 'index.html'; }
+  })();
+
+  // ── LOAD ITEMS ────────────────────────────────────────────
+  async function loadItems() {
+    const { data, error } = await sb
+      .from('einkaufsliste')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true });
+
+    if (error) { console.error(error); return; }
+    items = data || [];
+    renderList();
+  }
+
+  // ── RENDER ────────────────────────────────────────────────
+  function renderList() {
+    const container = document.getElementById('list-container');
+    const offen     = items.filter(i => !i.erledigt);
+    const erledigt  = items.filter(i => i.erledigt);
+
+    // Update count
+    document.getElementById('item-count').textContent =
+      offen.length + (offen.length === 1 ? ' Artikel' : ' Artikel');
+
+    // Clear done button
+    document.getElementById('clear-btn').style.display = erledigt.length > 0 ? 'block' : 'none';
+
+    if (items.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🛒</div>
+          <div class="empty-text">Die Liste ist leer — füge etwas hinzu!</div>
+        </div>`;
+      return;
+    }
+
+    let html = '';
+    [...offen, ...erledigt].forEach(item => {
+      const time = new Date(item.created_at).toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
+      html += `
+        <div class="item-card ${item.erledigt ? 'done' : ''}" id="item-${item.id}">
+          <button class="check-btn" onclick="toggleItem('${item.id}', ${item.erledigt})">
+            ${item.erledigt ? '✓' : ''}
+          </button>
+          <span class="item-text">${escapeHtml(item.text)}</span>
+          <span class="item-time">${time}</span>
+          <button class="delete-btn" onclick="deleteItem('${item.id}')">✕</button>
+        </div>`;
+    });
+    container.innerHTML = html;
+  }
+
+  // ── ADD ITEM ──────────────────────────────────────────────
+  async function addItem(text) {
+    const input = document.getElementById('item-input');
+    const value = (text || input.value).trim();
+    if (!value) return;
+    input.value = '';
+
+    const { data, error } = await sb.from('einkaufsliste').insert({
+      text: value, erledigt: false, user_id: userId
+    }).select().single();
+
+    if (error) { console.error(error); return; }
+    items.push(data);
+    renderList();
+  }
+
+  // ── TOGGLE ITEM ───────────────────────────────────────────
+  async function toggleItem(id, currentState) {
+    const { error } = await sb
+      .from('einkaufsliste')
+      .update({ erledigt: !currentState })
+      .eq('id', id).eq('user_id', userId);
+    if (error) return;
+    const item = items.find(i => i.id == id);
+    if (item) item.erledigt = !currentState;
+    renderList();
+  }
+
+  // ── DELETE ITEM ───────────────────────────────────────────
+  async function deleteItem(id) {
+    const { error } = await sb
+      .from('einkaufsliste')
+      .delete()
+      .eq('id', id).eq('user_id', userId);
+    if (error) return;
+    items = items.filter(i => i.id != id);
+    renderList();
+  }
+
+  // ── CLEAR DONE ────────────────────────────────────────────
+  async function clearDone() {
+    const { error } = await sb
+      .from('einkaufsliste')
+      .delete()
+      .eq('erledigt', true).eq('user_id', userId);
+    if (error) return;
+    items = items.filter(i => !i.erledigt);
+    renderList();
+  }
+
+  // ── VOICE INPUT ───────────────────────────────────────────
+  let recognition = null;
+  let listening   = false;
+
+  function toggleMic() {
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      alert('Spracheingabe wird in diesem Browser nicht unterstützt.');
+      return;
+    }
+    if (listening) {
+      recognition.stop(); return;
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SR();
+    recognition.lang = 'de-DE';
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      listening = true;
+      document.getElementById('mic-btn').classList.add('listening');
+      document.getElementById('mic-label').textContent = 'Ich höre zu...';
+    };
+    recognition.onresult = (e) => {
+      const text = e.results[0][0].transcript;
+      document.getElementById('item-input').value = text;
+      addItem(text);
+    };
+    recognition.onend = () => {
+      listening = false;
+      document.getElementById('mic-btn').classList.remove('listening');
+      document.getElementById('mic-label').textContent = 'Per Sprache hinzufügen';
+    };
+    recognition.start();
+  }
+
+  // ── HELPERS ───────────────────────────────────────────────
+  function escapeHtml(text) {
+    return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  document.getElementById('item-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addItem();
+  });
+</script>
+</body>
+</html>
