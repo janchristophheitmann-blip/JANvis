@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#fdf6f0">
+  <title>JANVIS ✨</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg:        #fdf6f0;
+      --rose:      #f2a8b8;
+      --rose-soft: #fce8ed;
+      --lavender:  #c9b8e8;
+      --lav-soft:  #ede8f8;
+      --mint:      #a8d5c2;
+      --mint-soft: #e2f4ee;
+      --peach:     #f5c9a0;
+      --text:      #4a3728;
+      --text-soft: #9c8276;
+      --shadow:    rgba(180,130,110,0.12);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .blob {
+      position: fixed; border-radius: 50%;
+      filter: blur(70px); pointer-events: none; z-index: 0; opacity: 0.45;
+    }
+    .blob-1 { width:320px; height:320px; background:var(--rose);    top:-80px;    right:-60px;  animation: drift1 12s ease-in-out infinite; }
+    .blob-2 { width:280px; height:280px; background:var(--lavender); bottom:60px;  left:-80px;   animation: drift2 15s ease-in-out infinite; }
+    .blob-3 { width:200px; height:200px; background:var(--peach);   top:45%;      right:-40px;  animation: drift1 18s ease-in-out infinite reverse; }
+
+    @keyframes drift1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-20px,25px) scale(1.08)} }
+    @keyframes drift2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(18px,-20px) scale(1.05)} }
+
+    .card {
+      position: relative; z-index: 1;
+      background: rgba(255,255,255,0.75);
+      backdrop-filter: blur(20px);
+      border-radius: 28px;
+      padding: 40px 32px;
+      width: 92%; max-width: 380px;
+      box-shadow: 0 8px 40px var(--shadow), 0 1px 0 rgba(255,255,255,0.9) inset;
+      animation: fadeUp 0.7s ease both;
+    }
+
+    .logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem; font-weight: 600;
+      letter-spacing: 0.08em;
+      text-align: center; margin-bottom: 4px;
+    }
+    .logo span { color: var(--rose); font-style: italic; }
+
+    .tagline {
+      text-align: center; font-size: 0.78rem;
+      font-weight: 300; color: var(--text-soft);
+      letter-spacing: 0.08em; margin-bottom: 32px;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex; gap: 0;
+      background: var(--rose-soft);
+      border-radius: 14px; padding: 4px;
+      margin-bottom: 24px;
+    }
+    .tab {
+      flex: 1; padding: 9px;
+      border: none; background: transparent;
+      border-radius: 10px; cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem; font-weight: 400;
+      color: var(--text-soft); transition: all 0.25s;
+    }
+    .tab.active {
+      background: #fff;
+      color: var(--text); font-weight: 500;
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+
+    /* Form */
+    .form-group { margin-bottom: 16px; }
+    label {
+      display: block; font-size: 0.72rem;
+      font-weight: 500; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--text-soft);
+      margin-bottom: 6px;
+    }
+    input {
+      width: 100%; padding: 13px 16px;
+      border: 1.5px solid rgba(242,168,184,0.3);
+      border-radius: 14px; background: rgba(255,255,255,0.8);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem; color: var(--text);
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus {
+      border-color: var(--rose);
+      box-shadow: 0 0 0 3px rgba(242,168,184,0.15);
+    }
+
+    /* Buttons */
+    .btn-primary {
+      width: 100%; padding: 15px;
+      background: linear-gradient(135deg, var(--rose), var(--lavender));
+      border: none; border-radius: 16px;
+      color: #fff; font-family: 'Cormorant Garamond', serif;
+      font-size: 1.1rem; font-weight: 600;
+      letter-spacing: 0.06em; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(242,168,184,0.4);
+      transition: all 0.25s; margin-top: 8px;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(242,168,184,0.5); }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .btn-fingerprint {
+      width: 100%; padding: 15px;
+      background: linear-gradient(135deg, var(--mint-soft), var(--lav-soft));
+      border: 1.5px solid rgba(168,213,194,0.5);
+      border-radius: 16px; color: var(--text);
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.1rem; font-weight: 600;
+      letter-spacing: 0.06em; cursor: pointer;
+      transition: all 0.25s; margin-top: 12px;
+      display: flex; align-items: center;
+      justify-content: center; gap: 10px;
+    }
+    .btn-fingerprint:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--shadow); }
+    .btn-fingerprint:active { transform: scale(0.98); }
+
+    /* Divider */
+    .divider {
+      display: flex; align-items: center;
+      gap: 12px; margin: 16px 0;
+      font-size: 0.72rem; color: var(--text-soft);
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px;
+      background: rgba(180,130,110,0.15);
+    }
+
+    /* Message */
+    .msg {
+      margin-top: 14px; padding: 12px 16px;
+      border-radius: 12px; font-size: 0.82rem;
+      text-align: center; display: none;
+    }
+    .msg.success { background: var(--mint-soft); color: #3a7a62; display: block; }
+    .msg.error   { background: #fde8e8; color: #b04040; display: block; }
+    .msg.info    { background: var(--lav-soft); color: #6a4a9a; display: block; }
+
+    /* Panel visibility */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(24px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+<div class="blob blob-3"></div>
+
+<div class="card">
+  <div class="logo">Jan<span>vis</span></div>
+  <div class="tagline">Dein persönlicher Assistent ✨</div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('login')">Anmelden</button>
+    <button class="tab" onclick="switchTab('register')">Registrieren</button>
+  </div>
+
+  <!-- LOGIN PANEL -->
+  <div class="panel active" id="panel-login">
+    <div class="form-group">
+      <label>E-Mail</label>
+      <input type="email" id="login-email" placeholder="monique@beispiel.de" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label>Passwort</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" onclick="handleLogin()">Anmelden</button>
+
+    <div class="divider">oder</div>
+
+    <button class="btn-fingerprint" onclick="handleFingerprint()">
+      <span>👆</span> Mit Fingerabdruck entsperren
+    </button>
+  </div>
+
+  <!-- REGISTER PANEL -->
+  <div class="panel" id="panel-register">
+    <div class="form-group">
+      <label>E-Mail</label>
+      <input type="email" id="reg-email" placeholder="monique@beispiel.de" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label>Passwort</label>
+      <input type="password" id="reg-password" placeholder="Mindestens 8 Zeichen" autocomplete="new-password">
+    </div>
+    <button class="btn-primary" onclick="handleRegister()">Account erstellen</button>
+  </div>
+
+  <div class="msg" id="msg"></div>
+</div>
+
+<script>
+  // ── SUPABASE INIT ─────────────────────────────────────────
+  // ⚠️ Diese zwei Werte sind ÖFFENTLICH (publishable) — kein Sicherheitsproblem
+  // Alle echten API Keys (Claude, ElevenLabs) kommen NIEMALS hierher
+  const SUPABASE_URL  = 'https://ygwfolclbfkhxdkavmak.supabase.co';
+  const SUPABASE_KEY  = 'sb_publishable_9uJwdWUO8o6NEUOdud0ezA_F56WM0cK';
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // ── TABS ──────────────────────────────────────────────────
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')));
+    document.getElementById('panel-login').classList.toggle('active', tab==='login');
+    document.getElementById('panel-register').classList.toggle('active', tab==='register');
+    hideMsg();
+  }
+
+  // ── MESSAGES ──────────────────────────────────────────────
+  function showMsg(text, type='info') {
+    const el = document.getElementById('msg');
+    el.textContent = text; el.className = 'msg ' + type;
+  }
+  function hideMsg() {
+    document.getElementById('msg').className = 'msg';
+  }
+
+  // ── CHECK SESSION ON LOAD ─────────────────────────────────
+  async function checkSession() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) window.location.href = 'app.html';
+    } catch(e) {
+      console.log('Session check failed:', e);
+    }
+  }
+  checkSession();
+
+  // ── REGISTER ──────────────────────────────────────────────
+  async function handleRegister() {
+    const email    = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+    if (!email || !password) return showMsg('Bitte alle Felder ausfüllen.', 'error');
+    if (password.length < 8)  return showMsg('Passwort muss mindestens 8 Zeichen haben.', 'error');
+
+    const btn = document.querySelector('#panel-register .btn-primary');
+    btn.disabled = true; btn.textContent = 'Wird erstellt...';
+
+    const { error } = await supabase.auth.signUp({ email, password });
+    btn.disabled = false; btn.textContent = 'Account erstellen';
+
+    if (error) return showMsg(error.message, 'error');
+    showMsg('✉️ Bestätigungs-Email gesendet! Bitte überprüfe dein Postfach.', 'success');
+  }
+
+  // ── LOGIN ─────────────────────────────────────────────────
+  async function handleLogin() {
+    const email    = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    if (!email || !password) return showMsg('Bitte alle Felder ausfüllen.', 'error');
+
+    const btn = document.querySelector('#panel-login .btn-primary');
+    btn.disabled = true; btn.textContent = 'Anmelden...';
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    btn.disabled = false; btn.textContent = 'Anmelden';
+
+    if (error) return showMsg('E-Mail oder Passwort falsch.', 'error');
+    window.location.href = 'app.html';
+  }
+
+  // ── FINGERPRINT (WebAuthn) ────────────────────────────────
+  async function handleFingerprint() {
+    if (!window.PublicKeyCredential) {
+      return showMsg('Dein Browser unterstützt keinen Fingerabdruck-Login.', 'error');
+    }
+    // Prüfen ob Fingerabdruck bereits registriert
+    const credId = localStorage.getItem('janvis_cred_id');
+    if (!credId) {
+      return showMsg('Bitte melde dich zuerst einmal mit Email & Passwort an, um den Fingerabdruck einzurichten.', 'info');
+    }
+    try {
+      showMsg('👆 Bitte Fingerabdruck auflegen...', 'info');
+      const assertion = await navigator.credentials.get({
+        publicKey: {
+          challenge: crypto.getRandomValues(new Uint8Array(32)),
+          allowCredentials: [{ id: base64ToBuffer(credId), type: 'public-key' }],
+          userVerification: 'required',
+          timeout: 60000
+        }
+      });
+      if (assertion) {
+        // Fingerabdruck erfolgreich — Session aus localStorage wiederherstellen
+        const savedSession = localStorage.getItem('janvis_session');
+        if (savedSession) {
+          await supabase.auth.setSession(JSON.parse(savedSession));
+          window.location.href = 'app.html';
+        } else {
+          showMsg('Bitte melde dich einmal mit Email & Passwort an.', 'info');
+        }
+      }
+    } catch(e) {
+      showMsg('Fingerabdruck nicht erkannt. Bitte nochmal versuchen.', 'error');
+    }
+  }
+
+  // ── HELPERS ───────────────────────────────────────────────
+  function base64ToBuffer(base64) {
+    const bin = atob(base64);
+    const buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    return buf;
+  }
+
+  // Enter-Taste zum Absenden
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    if (document.getElementById('panel-login').classList.contains('active')) handleLogin();
+    else handleRegister();
+  });
+</script>
+</body>
+</html>
