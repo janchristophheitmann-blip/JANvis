@@ -168,11 +168,15 @@
     document.getElementById('send-btn').disabled = true;
 
     try {
-      const res = await fetch(FUNCTION_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages })
-      });
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(FUNCTION_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({ messages })
+    });
       const data = await res.json();
       removeTyping(typingId);
 
