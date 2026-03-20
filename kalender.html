@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#fdf6f0">
+  <title>JANVIS · Kalender ✨</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg:        #fdf6f0;
+      --rose:      #f2a8b8;
+      --rose-soft: #fce8ed;
+      --lavender:  #c9b8e8;
+      --lav-soft:  #ede8f8;
+      --mint:      #a8d5c2;
+      --mint-soft: #e2f4ee;
+      --peach:     #f5c9a0;
+      --peach-soft:#fef0e2;
+      --text:      #4a3728;
+      --text-soft: #9c8276;
+      --shadow:    rgba(180,130,110,0.12);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; }
+    .blob { position:fixed; border-radius:50%; filter:blur(70px); pointer-events:none; z-index:0; opacity:0.4; }
+    .blob-1 { width:300px; height:300px; background:var(--rose);    top:-60px;   right:-60px; animation:drift1 12s ease-in-out infinite; }
+    .blob-2 { width:250px; height:250px; background:var(--lavender); bottom:80px; left:-60px;  animation:drift2 15s ease-in-out infinite; }
+    @keyframes drift1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-15px,20px)} }
+    @keyframes drift2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(15px,-15px)} }
+
+    #app { position:relative; z-index:1; max-width:480px; margin:0 auto; padding:0 20px 40px; }
+
+    header { display:flex; align-items:center; gap:12px; padding:22px 0 18px; animation:fadeDown 0.7s ease both; }
+    .back-btn { background:none; border:none; cursor:pointer; font-size:1.3rem; opacity:0.6; transition:opacity 0.2s; padding:4px; }
+    .back-btn:hover { opacity:1; }
+    .header-title { font-family:'Cormorant Garamond',serif; font-size:1.6rem; font-weight:600; }
+    .header-title span { color:var(--rose); font-style:italic; }
+
+    /* Connect button */
+    .connect-card { background:rgba(255,255,255,0.8); backdrop-filter:blur(12px); border-radius:20px; padding:28px 24px; text-align:center; box-shadow:0 3px 18px var(--shadow); margin-bottom:20px; animation:fadeUp 0.7s 0.1s ease both; }
+    .connect-icon { font-size:2.5rem; margin-bottom:12px; }
+    .connect-title { font-family:'Cormorant Garamond',serif; font-size:1.3rem; font-weight:600; margin-bottom:8px; }
+    .connect-desc { font-size:0.82rem; color:var(--text-soft); margin-bottom:20px; line-height:1.5; }
+    .connect-btn { display:inline-flex; align-items:center; gap:10px; padding:14px 24px; background:linear-gradient(135deg,var(--rose),var(--lavender)); border:none; border-radius:16px; color:#fff; font-family:'Cormorant Garamond',serif; font-size:1.05rem; font-weight:600; cursor:pointer; box-shadow:0 4px 20px rgba(242,168,184,0.4); transition:all 0.25s; }
+    .connect-btn:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(242,168,184,0.5); }
+
+    /* Events */
+    .section-title { font-size:0.68rem; font-weight:500; letter-spacing:0.2em; text-transform:uppercase; color:var(--text-soft); margin:0 0 14px; display:flex; align-items:center; gap:10px; }
+    .section-title::after { content:''; flex:1; height:1px; background:linear-gradient(to right,rgba(180,130,110,0.2),transparent); }
+
+    .events-section { animation:fadeUp 0.7s 0.15s ease both; }
+
+    .day-group { margin-bottom:20px; }
+    .day-label { font-size:0.72rem; font-weight:500; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-soft); margin-bottom:8px; }
+    .day-label.today { color:var(--rose); font-weight:600; }
+
+    .event-card { background:rgba(255,255,255,0.75); border-radius:16px; padding:14px 16px; margin-bottom:8px; display:flex; align-items:flex-start; gap:12px; box-shadow:0 2px 12px var(--shadow); border-left:3px solid var(--rose); transition:transform 0.2s; }
+    .event-card:hover { transform:translateX(3px); }
+    .event-card.color-blue   { border-left-color: #7ab8e8; }
+    .event-card.color-green  { border-left-color: var(--mint); }
+    .event-card.color-purple { border-left-color: var(--lavender); }
+    .event-card.color-peach  { border-left-color: var(--peach); }
+
+    .event-time { font-size:0.72rem; font-weight:500; color:var(--text-soft); min-width:42px; padding-top:2px; }
+    .event-info { flex:1; }
+    .event-title { font-size:0.92rem; font-weight:500; color:var(--text); margin-bottom:2px; }
+    .event-loc { font-size:0.75rem; color:var(--text-soft); }
+
+    .empty-state { text-align:center; padding:40px 20px; color:var(--text-soft); }
+    .empty-icon { font-size:2.5rem; margin-bottom:12px; }
+    .empty-text { font-family:'Cormorant Garamond',serif; font-size:1.1rem; }
+
+    .loading { text-align:center; padding:30px; color:var(--text-soft); font-size:0.85rem; }
+
+    /* Disconnect */
+    .disconnect-btn { margin-top:8px; background:none; border:1.5px dashed rgba(180,130,110,0.25); border-radius:12px; padding:10px 16px; color:var(--text-soft); font-family:'DM Sans',sans-serif; font-size:0.78rem; cursor:pointer; transition:all 0.2s; width:100%; }
+    .disconnect-btn:hover { border-color:var(--rose); color:var(--text); background:var(--rose-soft); }
+
+    .hidden { display:none; }
+
+    @keyframes fadeDown { from{opacity:0;transform:translateY(-14px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeUp   { from{opacity:0;transform:translateY(18px)}  to{opacity:1;transform:translateY(0)} }
+  </style>
+</head>
+<body>
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+
+<div id="app">
+  <header>
+    <button class="back-btn" onclick="window.location.href='app.html'">←</button>
+    <div class="header-title">Kalen<span>der</span></div>
+  </header>
+
+  <!-- Connect Google -->
+  <div id="connect-section" class="connect-card hidden">
+    <div class="connect-icon">📅</div>
+    <div class="connect-title">Google Calendar verbinden</div>
+    <div class="connect-desc">Verbinde deinen Google Calendar um deine Termine in JANVIS zu sehen und neue Termine per Sprache hinzuzufügen.</div>
+    <button class="connect-btn" onclick="connectGoogle()">
+      <span>🔗</span> Mit Google verbinden
+    </button>
+  </div>
+
+  <!-- Events -->
+  <div id="events-section" class="events-section hidden">
+    <div class="section-title">Deine nächsten Termine</div>
+    <div id="events-container">
+      <div class="loading">Lade Termine...</div>
+    </div>
+    <button class="disconnect-btn" onclick="disconnectGoogle()">Google Calendar trennen</button>
+  </div>
+</div>
+
+<script>
+  // ── SUPABASE ──────────────────────────────────────────────
+  // ⚠️ Publishable Key — sicher für Frontend. Alle anderen Keys (Claude, ElevenLabs) NIEMALS hier!
+  const { createClient } = supabase;
+  const sb = createClient(
+    'https://ygwfolclbfkhxdkavmak.supabase.co',     // Zeile 98 — z.B. https://xyz.supabase.co
+    'sb_publishable_9uJwdWUO8o6NEUOdud0ezA_F56WM0cK'    // Zeile 99 — sb_publishable_...
+  );
+
+  // ── Google OAuth Config ───────────────────────────────────
+  // ✅ Client-ID ist sicher für das Frontend
+  // ⚠️ Client-SECRET kommt NIEMALS hier rein — nur in Supabase Edge Function!
+  const GOOGLE_CLIENT_ID = '505671490797-7l23rh7158ohhms2l610kca1ndm9bnvb.apps.googleusercontent.com'; // Zeile 104 — ...apps.googleusercontent.com
+  const REDIRECT_URI     = 'https://janchristophheitmann-blip.github.io/JANvis/kalender.html';
+  const SCOPES           = 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events';
+
+  let accessToken = null;
+
+  // ── AUTH CHECK ────────────────────────────────────────────
+  (async () => {
+    try {
+      const { data } = await sb.auth.getSession();
+      if (!data.session) return window.location.href = 'index.html';
+    } catch(e) { return window.location.href = 'index.html'; }
+
+    // OAuth Callback verarbeiten (nach Google-Login)
+    const params = new URLSearchParams(window.location.hash.replace('#','?'));
+    const token  = params.get('access_token');
+    if (token) {
+      accessToken = token;
+      localStorage.setItem('janvis_google_token', token);
+      // Hash aus URL entfernen
+      window.history.replaceState({}, '', window.location.pathname);
+      showEvents();
+      loadEvents();
+      return;
+    }
+
+    // Gespeichertes Token prüfen
+    const saved = localStorage.getItem('janvis_google_token');
+    if (saved) {
+      accessToken = saved;
+      showEvents();
+      loadEvents();
+    } else {
+      showConnect();
+    }
+  })();
+
+  function showConnect() {
+    document.getElementById('connect-section').classList.remove('hidden');
+    document.getElementById('events-section').classList.add('hidden');
+  }
+  function showEvents() {
+    document.getElementById('connect-section').classList.add('hidden');
+    document.getElementById('events-section').classList.remove('hidden');
+  }
+
+  // ── CONNECT GOOGLE ────────────────────────────────────────
+  function connectGoogle() {
+    const url = `https://accounts.google.com/o/oauth2/v2/auth` +
+      `?client_id=${GOOGLE_CLIENT_ID}` +
+      `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+      `&response_type=token` +
+      `&scope=${encodeURIComponent(SCOPES)}` +
+      `&prompt=consent`;
+    window.location.href = url;
+  }
+
+  // ── DISCONNECT ────────────────────────────────────────────
+  function disconnectGoogle() {
+    localStorage.removeItem('janvis_google_token');
+    accessToken = null;
+    showConnect();
+  }
+
+  // ── LOAD EVENTS ───────────────────────────────────────────
+  async function loadEvents() {
+    try {
+      const now    = new Date().toISOString();
+      const future = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const url    = `https://www.googleapis.com/calendar/v3/calendars/primary/events` +
+        `?timeMin=${now}&timeMax=${future}&singleEvents=true&orderBy=startTime&maxResults=20`;
+
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+
+      if (res.status === 401) {
+        // Token abgelaufen
+        localStorage.removeItem('janvis_google_token');
+        showConnect();
+        return;
+      }
+
+      const data   = await res.json();
+      const events = data.items || [];
+      renderEvents(events);
+    } catch(e) {
+      document.getElementById('events-container').innerHTML =
+        '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Fehler beim Laden der Termine.</div></div>';
+    }
+  }
+
+  // ── RENDER EVENTS ─────────────────────────────────────────
+  function renderEvents(events) {
+    const container = document.getElementById('events-container');
+    if (events.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🗓️</div>
+          <div class="empty-text">Keine Termine in den nächsten 7 Tagen.</div>
+        </div>`;
+      return;
+    }
+
+    // Gruppiere nach Tag
+    const groups = {};
+    events.forEach(event => {
+      const start = event.start.dateTime || event.start.date;
+      const date  = start.substring(0, 10);
+      if (!groups[date]) groups[date] = [];
+      groups[date].push(event);
+    });
+
+    const today    = new Date().toISOString().substring(0, 10);
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().substring(0, 10);
+    const days     = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+    const months   = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+    const colors   = ['color-blue','color-green','color-purple','color-peach',''];
+
+    let html = '';
+    Object.keys(groups).sort().forEach(date => {
+      const d = new Date(date + 'T00:00:00');
+      let label = `${days[d.getDay()]}, ${d.getDate()}. ${months[d.getMonth()]}`;
+      let isToday = false;
+      if (date === today)    { label = `Heute · ${label}`; isToday = true; }
+      if (date === tomorrow)   label = `Morgen · ${label}`;
+
+      html += `<div class="day-group">
+        <div class="day-label ${isToday ? 'today' : ''}">${label}</div>`;
+
+      groups[date].forEach((event, i) => {
+        const start    = event.start.dateTime;
+        const timeStr  = start ? new Date(start).toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' }) : 'Ganzt.';
+        const colorCls = colors[i % colors.length];
+        const loc      = event.location ? `<div class="event-loc">📍 ${escapeHtml(event.location)}</div>` : '';
+        html += `
+          <div class="event-card ${colorCls}">
+            <div class="event-time">${timeStr}</div>
+            <div class="event-info">
+              <div class="event-title">${escapeHtml(event.summary || 'Kein Titel')}</div>
+              ${loc}
+            </div>
+          </div>`;
+      });
+      html += '</div>';
+    });
+
+    container.innerHTML = html;
+  }
+
+  function escapeHtml(text) {
+    return String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+</script>
+</body>
+</html>
