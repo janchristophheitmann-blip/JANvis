@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#020d18">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>JANVIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #020d18;
+      --panel:     rgba(0, 30, 55, 0.75);
+      --border:    rgba(0, 180, 255, 0.25);
+      --glow:      #00b4ff;
+      --gold:      #f0a500;
+      --text:      #c8e8ff;
+      --dim:       rgba(200, 232, 255, 0.45);
+      --danger:    #ff4560;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      cursor: crosshair;
+    }
+
+    /* ── CANVAS BACKGROUND ── */
+    #bg-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      opacity: 0.55;
+    }
+
+    /* ── SCAN LINE OVERLAY ── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.04) 2px,
+        rgba(0,0,0,0.04) 4px
+      );
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* ── LAYOUT ── */
+    #app {
+      position: relative;
+      z-index: 2;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 0 16px 24px;
+    }
+
+    /* ── HEADER ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 0 10px;
+      border-bottom: 1px solid var(--border);
+      animation: fadeDown 0.8s ease both;
+    }
+
+    .logo {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.5rem;
+      font-weight: 900;
+      letter-spacing: 0.18em;
+      color: var(--glow);
+      text-shadow: 0 0 18px rgba(0,180,255,0.7);
+    }
+    .logo span { color: var(--gold); }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #00ff88;
+      box-shadow: 0 0 8px #00ff88;
+      animation: pulse 2s infinite;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.72rem;
+      color: var(--dim);
+      letter-spacing: 0.1em;
+    }
+
+    /* ── GREETING ── */
+    .greeting-section {
+      padding: 28px 0 20px;
+      animation: fadeUp 0.9s 0.2s ease both;
+    }
+
+    .greeting-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.25em;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .greeting-text {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.35rem;
+      font-weight: 700;
+      line-height: 1.4;
+      color: #fff;
+      text-shadow: 0 0 30px rgba(0,180,255,0.4);
+    }
+
+    .greeting-sub {
+      margin-top: 8px;
+      font-size: 0.85rem;
+      color: var(--dim);
+      letter-spacing: 0.05em;
+    }
+
+    /* ── WEATHER CARD ── */
+    .weather-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(12px);
+      animation: fadeUp 0.9s 0.35s ease both;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.3s, box-shadow 0.3s;
+      cursor: pointer;
+    }
+    .weather-card:hover {
+      border-color: rgba(0,180,255,0.6);
+      box-shadow: 0 0 20px rgba(0,180,255,0.12);
+    }
+
+    .weather-left .wlabel {
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .weather-temp {
+      font-family: 'Orbitron', monospace;
+      font-size: 2rem;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1;
+    }
+    .weather-desc {
+      font-size: 0.8rem;
+      color: var(--dim);
+      margin-top: 4px;
+    }
+    .weather-icon {
+      font-size: 2.8rem;
+      filter: drop-shadow(0 0 10px rgba(0,180,255,0.5));
+    }
+
+    /* ── SECTION TITLE ── */
+    .section-title {
+      font-size: 0.65rem;
+      letter-spacing: 0.25em;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin: 20px 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, var(--border), transparent);
+    }
+
+    /* ── MODULE GRID ── */
+    .module-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      animation: fadeUp 0.9s 0.5s ease both;
+    }
+
+    .module-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 14px;
+      backdrop-filter: blur(12px);
+      transition: border-color 0.3s, box-shadow 0.3s, transform 0.2s;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .module-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(to right, transparent, var(--glow), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .module-card:hover {
+      border-color: rgba(0,180,255,0.55);
+      box-shadow: 0 0 24px rgba(0,180,255,0.1);
+      transform: translateY(-2px);
+    }
+    .module-card:hover::before { opacity: 1; }
+    .module-card:active { transform: scale(0.97); }
+
+    .module-icon {
+      font-size: 1.6rem;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .module-name {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--glow);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .module-desc {
+      font-size: 0.76rem;
+      color: var(--dim);
+      line-height: 1.4;
+    }
+
+    .module-card.gold-accent { border-color: rgba(240,165,0,0.3); }
+    .module-card.gold-accent .module-name { color: var(--gold); }
+    .module-card.gold-accent::before {
+      background: linear-gradient(to right, transparent, var(--gold), transparent);
+    }
+
+    /* ── MIC BUTTON ── */
+    .mic-section {
+      animation: fadeUp 0.9s 0.65s ease both;
+      margin-top: 20px;
+    }
+
+    .mic-btn {
+      width: 100%;
+      padding: 18px;
+      background: linear-gradient(135deg, rgba(0,180,255,0.12), rgba(0,80,160,0.2));
+      border: 1px solid rgba(0,180,255,0.5);
+      border-radius: 14px;
+      color: #fff;
+      font-family: 'Orbitron', monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    .mic-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(0,180,255,0.15), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .mic-btn:hover {
+      border-color: var(--glow);
+      box-shadow: 0 0 30px rgba(0,180,255,0.25), inset 0 0 20px rgba(0,180,255,0.05);
+    }
+    .mic-btn:hover::before { opacity: 1; }
+    .mic-btn:active { transform: scale(0.98); }
+
+    .mic-btn.listening {
+      border-color: var(--danger);
+      background: linear-gradient(135deg, rgba(255,69,96,0.15), rgba(160,0,30,0.2));
+      animation: listenPulse 1.5s infinite;
+    }
+
+    .mic-icon {
+      font-size: 1.4rem;
+      transition: transform 0.3s;
+    }
+    .mic-btn:hover .mic-icon { transform: scale(1.15); }
+
+    /* ── HUD CORNERS ── */
+    .hud-corner {
+      position: fixed;
+      width: 28px; height: 28px;
+      opacity: 0.4;
+      z-index: 3;
+    }
+    .hud-corner.tl { top: 10px; left: 10px; border-top: 2px solid var(--glow); border-left: 2px solid var(--glow); }
+    .hud-corner.tr { top: 10px; right: 10px; border-top: 2px solid var(--glow); border-right: 2px solid var(--glow); }
+    .hud-corner.bl { bottom: 10px; left: 10px; border-bottom: 2px solid var(--glow); border-left: 2px solid var(--glow); }
+    .hud-corner.br { bottom: 10px; right: 10px; border-bottom: 2px solid var(--glow); border-right: 2px solid var(--glow); }
+
+    /* ── SYSTEM BAR ── */
+    .sys-bar {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0 0;
+      margin-top: 20px;
+      border-top: 1px solid var(--border);
+      font-size: 0.62rem;
+      letter-spacing: 0.12em;
+      color: var(--dim);
+      animation: fadeUp 0.9s 0.75s ease both;
+    }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 8px #00ff88; }
+      50%       { opacity: 0.4; box-shadow: 0 0 3px #00ff88; }
+    }
+    @keyframes listenPulse {
+      0%, 100% { box-shadow: 0 0 0 rgba(255,69,96,0); }
+      50%       { box-shadow: 0 0 25px rgba(255,69,96,0.4); }
+    }
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HUD corners -->
+<div class="hud-corner tl"></div>
+<div class="hud-corner tr"></div>
+<div class="hud-corner bl"></div>
+<div class="hud-corner br"></div>
+
+<!-- Particle canvas -->
+<canvas id="bg-canvas"></canvas>
+
+<div id="app">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">JAN<span>VIS</span></div>
+    <div class="header-right">
+      <div class="status-dot"></div>
+      <span id="clock">--:--</span>
+    </div>
+  </header>
+
+  <!-- Greeting -->
+  <div class="greeting-section">
+    <div class="greeting-label">// System aktiv</div>
+    <div class="greeting-text" id="greeting">Guten Morgen,<br>Monique.</div>
+    <div class="greeting-sub" id="date-line">Initialisiere Systeme...</div>
+  </div>
+
+  <!-- Weather -->
+  <a class="weather-card" href="https://www.wetteronline.de/wetter/bremen" target="_blank" rel="noopener">
+    <div class="weather-left">
+      <div class="wlabel">// Wetter · Bremen 28329</div>
+      <div class="weather-temp" id="w-temp">--°</div>
+      <div class="weather-desc" id="w-desc">Lade Wetterdaten...</div>
+    </div>
+    <div class="weather-icon" id="w-icon">🌡️</div>
+  </a>
+
+  <!-- Modules -->
+  <div class="section-title">// Module</div>
+  <div class="module-grid">
+
+    <div class="module-card" onclick="alert('Kalender-Modul kommt in Phase 3!')">
+      <span class="module-icon">📅</span>
+      <div class="module-name">Kalender</div>
+      <div class="module-desc">Google Calendar · Termine im Blick</div>
+    </div>
+
+    <div class="module-card" onclick="alert('Einkaufsliste kommt in Phase 3!')">
+      <span class="module-icon">🛒</span>
+      <div class="module-name">Einkauf</div>
+      <div class="module-desc">Intelligente Liste · Spracheingabe</div>
+    </div>
+
+    <div class="module-card gold-accent" onclick="alert('Power BI Coach kommt in Phase 3!')">
+      <span class="module-icon">📊</span>
+      <div class="module-name">Power BI</div>
+      <div class="module-desc">Persönlicher KI-Coach · Lernpfad</div>
+    </div>
+
+    <div class="module-card gold-accent" onclick="alert('Erinnerungen kommen in Phase 4!')">
+      <span class="module-icon">🔔</span>
+      <div class="module-name">Reminder</div>
+      <div class="module-desc">Push-Benachrichtigungen · Smart</div>
+    </div>
+
+  </div>
+
+  <!-- Mic Button -->
+  <div class="mic-section">
+    <button class="mic-btn" id="mic-btn" onclick="toggleMic()">
+      <span class="mic-icon">🎤</span>
+      <span id="mic-label">JANVIS SPRECHEN</span>
+    </button>
+  </div>
+
+  <!-- System bar -->
+  <div class="sys-bar">
+    <span>JANVIS v0.1.0</span>
+    <span>GEBAUT VON JAN ❤️</span>
+    <span id="sys-date">--.--.----</span>
+  </div>
+
+</div>
+
+<script>
+  // ── CLOCK & DATE ──────────────────────────────────────────
+  function updateClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2,'0');
+    const m = String(now.getMinutes()).padStart(2,'0');
+    document.getElementById('clock').textContent = h + ':' + m;
+
+    const days = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+    const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+    document.getElementById('date-line').textContent =
+      days[now.getDay()] + ', ' + now.getDate() + '. ' + months[now.getMonth()] + ' ' + now.getFullYear();
+    document.getElementById('sys-date').textContent =
+      String(now.getDate()).padStart(2,'0') + '.' +
+      String(now.getMonth()+1).padStart(2,'0') + '.' + now.getFullYear();
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // ── GREETING ─────────────────────────────────────────────
+  function updateGreeting() {
+    const h = new Date().getHours();
+    let g = h < 12 ? 'Guten Morgen,' : h < 18 ? 'Guten Tag,' : 'Guten Abend,';
+    document.getElementById('greeting').innerHTML = g + '<br>Monique.';
+  }
+  updateGreeting();
+
+  // ── WEATHER (Open-Meteo, Bremen) ──────────────────────────
+  async function loadWeather() {
+    try {
+      // Bremen coordinates
+      const url = 'https://api.open-meteo.com/v1/forecast?latitude=53.0793&longitude=8.8017&current=temperature_2m,weathercode&timezone=Europe/Berlin';
+      const res = await fetch(url);
+      const data = await res.json();
+      const temp = Math.round(data.current.temperature_2m);
+      const code = data.current.weathercode;
+
+      const icons = {
+        0:'☀️', 1:'🌤️', 2:'⛅', 3:'☁️',
+        45:'🌫️', 48:'🌫️',
+        51:'🌦️', 53:'🌦️', 55:'🌧️',
+        61:'🌧️', 63:'🌧️', 65:'🌧️',
+        71:'❄️', 73:'❄️', 75:'❄️',
+        80:'🌦️', 81:'🌧️', 82:'⛈️',
+        95:'⛈️', 96:'⛈️', 99:'⛈️'
+      };
+      const descs = {
+        0:'Klarer Himmel', 1:'Überwiegend klar', 2:'Teilweise bewölkt', 3:'Bedeckt',
+        45:'Neblig', 48:'Neblig',
+        51:'Leichter Nieselregen', 53:'Nieselregen', 55:'Starker Nieselregen',
+        61:'Leichter Regen', 63:'Regen', 65:'Starker Regen',
+        71:'Leichter Schnee', 73:'Schnee', 75:'Starker Schnee',
+        80:'Regenschauer', 81:'Starke Schauer', 82:'Gewitter',
+        95:'Gewitter', 96:'Gewitter mit Hagel', 99:'Starkes Gewitter'
+      };
+
+      document.getElementById('w-temp').textContent = temp + '°C';
+      document.getElementById('w-desc').textContent = descs[code] || 'Wetterdaten geladen';
+      document.getElementById('w-icon').textContent = icons[code] || '🌡️';
+    } catch(e) {
+      document.getElementById('w-desc').textContent = 'Tippe für wetteronline.de →';
+    }
+  }
+  loadWeather();
+
+  // ── MIC BUTTON (placeholder) ──────────────────────────────
+  let listening = false;
+  function toggleMic() {
+    listening = !listening;
+    const btn = document.getElementById('mic-btn');
+    const label = document.getElementById('mic-label');
+    if (listening) {
+      btn.classList.add('listening');
+      label.textContent = 'JANVIS HÖRT ZU...';
+    } else {
+      btn.classList.remove('listening');
+      label.textContent = 'JANVIS SPRECHEN';
+    }
+  }
+
+  // ── PARTICLE CANVAS ───────────────────────────────────────
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let particles = [];
+
+  function resize() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function createParticle() {
+    return {
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      size: Math.random() * 1.5 + 0.3,
+      alpha: Math.random() * 0.6 + 0.1,
+      color: Math.random() > 0.8 ? '#f0a500' : '#00b4ff'
+    };
+  }
+
+  for (let i = 0; i < 80; i++) particles.push(createParticle());
+
+  function drawParticles() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw connections
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i+1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 120) {
+          ctx.beginPath();
+          ctx.strokeStyle = `rgba(0,180,255,${0.08 * (1 - dist/120)})`;
+          ctx.lineWidth = 0.5;
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Draw particles
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = canvas.width;
+      if (p.x > canvas.width) p.x = 0;
+      if (p.y < 0) p.y = canvas.height;
+      if (p.y > canvas.height) p.y = 0;
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.alpha;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+
+    requestAnimationFrame(drawParticles);
+  }
+  drawParticles();
+</script>
+</body>
+</html>
