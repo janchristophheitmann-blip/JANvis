@@ -292,7 +292,8 @@
         body: JSON.stringify({ text })
       });
       const result = await res.json();
-      resetMic();
+        resetMic();
+        showToast(JSON.stringify(result), '');
 
       switch(result.aktion) {
         case 'einkauf':
