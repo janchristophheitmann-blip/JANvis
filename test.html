@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JANVIS · Sprache Test</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: sans-serif; padding: 24px; background: #fdf6f0; }
+    input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; margin-bottom: 12px; }
+    button { padding: 12px 24px; background: #f2a8b8; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
+    pre { background: #fff; padding: 16px; border-radius: 8px; margin-top: 16px; white-space: pre-wrap; font-size: 0.85rem; border: 1px solid #eee; }
+  </style>
+</head>
+<body>
+  <h2>🎤 Sprache Test</h2>
+  <input type="text" id="test-input" value="Eine Packung Mehl" placeholder="Text eingeben...">
+  <button onclick="testSprache()">Testen</button>
+  <pre id="result">Ergebnis erscheint hier...</pre>
+
+<script>
+  const { createClient } = supabase;
+  const sb = createClient(
+    'https://ygwfolclbfkhxdkavmak.supabase.co',     // Zeile 20
+    'sb_publishable_9uJwdWUO8o6NEUOdud0ezA_F56WM0cK'    // Zeile 21
+  );
+
+  const SPRACHE_URL = 'https://ygwfolclbfkhxdkavmak.supabase.co/functions/v1/sprache';
+
+  async function testSprache() {
+    const text = document.getElementById('test-input').value.trim();
+    if (!text) return;
+    document.getElementById('result').textContent = 'Wird verarbeitet...';
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { document.getElementById('result').textContent = 'Nicht eingeloggt!'; return; }
+
+      const res  = await fetch(SPRACHE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${session.access_token}` },
+        body: JSON.stringify({ text })
+      });
+      const data = await res.json();
+      document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+    } catch(e) {
+      document.getElementById('result').textContent = 'Fehler: ' + e.message;
+    }
+  }
+</script>
+</body>
+</html>
