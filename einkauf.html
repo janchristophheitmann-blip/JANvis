@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#fdf6f0">
+  <title>JANVIS · Einkauf ✨</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg:        #fdf6f0;
+      --rose:      #f2a8b8;
+      --rose-soft: #fce8ed;
+      --lavender:  #c9b8e8;
+      --lav-soft:  #ede8f8;
+      --mint:      #a8d5c2;
+      --mint-soft: #e2f4ee;
+      --peach:     #f5c9a0;
+      --text:      #4a3728;
+      --text-soft: #9c8276;
+      --shadow:    rgba(180,130,110,0.12);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; }
+    .blob { position:fixed; border-radius:50%; filter:blur(70px); pointer-events:none; z-index:0; opacity:0.4; }
+    .blob-1 { width:300px; height:300px; background:var(--mint);    top:-60px;   right:-60px; animation:drift1 12s ease-in-out infinite; }
+    .blob-2 { width:250px; height:250px; background:var(--lavender); bottom:80px; left:-60px;  animation:drift2 15s ease-in-out infinite; }
+    @keyframes drift1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-15px,20px)} }
+    @keyframes drift2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(15px,-15px)} }
+
+    #app { position:relative; z-index:1; max-width:480px; margin:0 auto; padding:0 20px 40px; }
+
+    header { display:flex; align-items:center; gap:12px; padding:22px 0 18px; animation:fadeDown 0.7s ease both; }
+    .back-btn { background:none; border:none; cursor:pointer; font-size:1.3rem; opacity:0.6; transition:opacity 0.2s; padding:4px; }
+    .back-btn:hover { opacity:1; }
+    .header-title { font-family:'Cormorant Garamond',serif; font-size:1.6rem; font-weight:600; }
+    .header-title span { color:var(--mint); font-style:italic; }
+    .item-count { margin-left:auto; background:var(--mint-soft); color:#4a8a72; border-radius:20px; padding:4px 12px; font-size:0.75rem; font-weight:500; }
+
+    /* Input area */
+    .input-card { background:rgba(255,255,255,0.8); backdrop-filter:blur(12px); border-radius:20px; padding:16px; box-shadow:0 3px 18px var(--shadow); margin-bottom:20px; animation:fadeUp 0.7s 0.1s ease both; }
+    .input-row { display:flex; gap:10px; align-items:center; }
+    .item-input { flex:1; padding:12px 16px; border:1.5px solid rgba(168,213,194,0.4); border-radius:14px; background:rgba(255,255,255,0.9); font-family:'DM Sans',sans-serif; font-size:0.95rem; color:var(--text); outline:none; transition:border-color 0.2s; }
+    .item-input:focus { border-color:var(--mint); box-shadow:0 0 0 3px rgba(168,213,194,0.15); }
+    .add-btn { padding:12px 18px; background:linear-gradient(135deg,var(--mint),#7ec4a8); border:none; border-radius:14px; color:#fff; font-family:'DM Sans',sans-serif; font-size:1.2rem; cursor:pointer; transition:all 0.2s; box-shadow:0 3px 12px rgba(168,213,194,0.4); }
+    .add-btn:hover { transform:translateY(-2px); box-shadow:0 6px 18px rgba(168,213,194,0.5); }
+    .add-btn:active { transform:scale(0.96); }
+
+    /* Sort toggle */
+    .sort-toggle { display:flex; gap:8px; margin-bottom:18px; animation:fadeUp 0.7s 0.15s ease both; }
+    .sort-btn { flex:1; padding:10px; border-radius:14px; border:1.5px solid rgba(168,213,194,0.35); background:rgba(255,255,255,0.7); font-family:'DM Sans',sans-serif; font-size:0.78rem; font-weight:500; color:var(--text-soft); cursor:pointer; transition:all 0.2s; text-align:center; }
+    .sort-btn.active { background:linear-gradient(135deg,var(--mint-soft),#d0f0e4); border-color:var(--mint); color:#3a7a60; }
+    .sort-btn:hover:not(.active) { border-color:var(--mint); color:var(--text); }
+
+    /* Gruppen */
+    .gruppe { margin-bottom:20px; animation:fadeUp 0.4s ease both; }
+    .gruppe-header { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+    .gruppe-emoji { font-size:1.1rem; }
+    .gruppe-name { font-size:0.68rem; font-weight:500; letter-spacing:0.18em; text-transform:uppercase; color:var(--text-soft); }
+    .gruppe-name::after { content:''; display:inline-block; height:1px; width:40px; background:rgba(180,130,110,0.2); margin-left:10px; vertical-align:middle; }
+    .sort-loading { text-align:center; padding:20px; color:var(--text-soft); font-size:0.82rem; display:flex; align-items:center; justify-content:center; gap:8px; }
+    .sort-spinner { width:16px; height:16px; border:2px solid var(--mint-soft); border-top-color:var(--mint); border-radius:50%; animation:spin 0.8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* List */
+    .list-section { animation:fadeUp 0.7s 0.2s ease both; }
+    .empty-state { text-align:center; padding:40px 20px; color:var(--text-soft); }
+    .empty-icon { font-size:2.5rem; margin-bottom:12px; }
+    .empty-text { font-family:'Cormorant Garamond',serif; font-size:1.1rem; }
+
+    .item-card { background:rgba(255,255,255,0.75); backdrop-filter:blur(10px); border-radius:16px; padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; gap:12px; box-shadow:0 2px 12px var(--shadow); border:1.5px solid rgba(255,255,255,0.8); transition:all 0.25s; animation:slideIn 0.3s ease both; }
+    .item-card.done { opacity:0.55; }
+    .item-card.done .item-text { text-decoration:line-through; color:var(--text-soft); }
+
+    .check-btn { width:26px; height:26px; border-radius:50%; border:2px solid rgba(168,213,194,0.6); background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; flex-shrink:0; font-size:0.8rem; }
+    .check-btn:hover { border-color:var(--mint); background:var(--mint-soft); }
+    .item-card.done .check-btn { background:var(--mint); border-color:var(--mint); }
+
+    .item-text { flex:1; font-size:0.95rem; font-weight:400; }
+    .item-time { font-size:0.68rem; color:var(--text-soft); }
+
+    .delete-btn { background:none; border:none; cursor:pointer; font-size:1rem; opacity:0.3; transition:opacity 0.2s; padding:4px; }
+    .delete-btn:hover { opacity:0.8; }
+
+    /* Clear done button */
+    .clear-btn { width:100%; margin-top:16px; padding:12px; background:transparent; border:1.5px dashed rgba(180,130,110,0.25); border-radius:14px; color:var(--text-soft); font-family:'DM Sans',sans-serif; font-size:0.82rem; cursor:pointer; transition:all 0.2s; }
+    .clear-btn:hover { border-color:var(--rose); color:var(--text); background:var(--rose-soft); }
+
+    .loading { text-align:center; padding:30px; color:var(--text-soft); font-size:0.85rem; }
+
+    @keyframes fadeDown { from{opacity:0;transform:translateY(-14px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeUp   { from{opacity:0;transform:translateY(18px)}  to{opacity:1;transform:translateY(0)} }
+    @keyframes slideIn  { from{opacity:0;transform:translateX(-12px)} to{opacity:1;transform:translateX(0)} }
+    @keyframes listenPulse { 0%,100%{box-shadow:0 0 0 rgba(242,168,184,0)} 50%{box-shadow:0 0 12px rgba(242,168,184,0.4)} }
+  </style>
+</head>
+<body>
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+
+<div id="app">
+  <header>
+    <button class="back-btn" onclick="window.location.href='app.html'">←</button>
+    <div class="header-title">Einkaufs<span>liste</span></div>
+    <div class="item-count" id="item-count">0 Artikel</div>
+  </header>
+
+  <!-- Input -->
+  <div class="input-card">
+    <div class="input-row">
+      <input class="item-input" id="item-input" type="text" placeholder="Artikel hinzufügen..." autocomplete="off">
+      <button class="add-btn" onclick="addItem()">+</button>
+    </div>
+  </div>
+
+  <!-- Sort Toggle -->
+  <div class="sort-toggle">
+    <button class="sort-btn" id="btn-normal" onclick="setSortMode('normal')">📋 Normal</button>
+    <button class="sort-btn active" id="btn-smart" onclick="setSortMode('smart')">🧠 Smart sortiert</button>
+  </div>
+
+  <!-- List -->
+  <div class="list-section">
+    <div id="list-container">
+      <div class="loading">Lade Liste...</div>
+    </div>
+    <button class="clear-btn" id="clear-btn" onclick="clearDone()" style="display:none">
+      ✓ Erledigte Artikel löschen
+    </button>
+  </div>
+</div>
+
+<script>
+  // ── SUPABASE ──────────────────────────────────────────────
+  // ⚠️ Publishable Key — sicher für Frontend. Alle anderen Keys NIEMALS hier!
+  const { createClient } = supabase;
+  const sb = createClient(
+    'https://ygwfolclbfkhxdkavmak.supabase.co',
+    'sb_publishable_9uJwdWUO8o6NEUOdud0ezA_F56WM0cK'
+  );
+
+  const SORT_URL = 'https://ygwfolclbfkhxdkavmak.supabase.co/functions/v1/einkauf-sortieren';
+
+  let userId   = null;
+  let items    = [];
+  let sortMode = localStorage.getItem('einkauf_sort') || 'smart';
+  let sortCache = null; // gecachte Sortierung
+  let sortDirty = true; // ob neu sortiert werden muss
+
+  // ── AUTH ──────────────────────────────────────────────────
+  (async () => {
+    try {
+      const { data } = await sb.auth.getSession();
+      if (!data.session) return window.location.href = 'index.html';
+      userId = data.session.user.id;
+      setSortMode(sortMode, false);
+      loadItems();
+    } catch(e) { window.location.href = 'index.html'; }
+  })();
+
+  // ── SORT MODE ─────────────────────────────────────────────
+  function setSortMode(mode, save = true) {
+    sortMode = mode;
+    if (save) localStorage.setItem('einkauf_sort', mode);
+    document.getElementById('btn-normal').classList.toggle('active', mode === 'normal');
+    document.getElementById('btn-smart').classList.toggle('active',  mode === 'smart');
+    renderList();
+  }
+
+  // ── LOAD ITEMS ────────────────────────────────────────────
+  async function loadItems() {
+    const { data, error } = await sb
+      .from('einkaufsliste').select('*').eq('user_id', userId)
+      .order('created_at', { ascending: true });
+    if (error) { console.error(error); return; }
+    items = data || [];
+    sortDirty = true;
+    renderList();
+  }
+
+  // ── SMART SORT ────────────────────────────────────────────
+  async function holeSortierung() {
+    const offeneArtikel = items.filter(i => !i.erledigt);
+    if (offeneArtikel.length === 0) return { gruppen: [] };
+
+    // Cache nutzen wenn nicht dirty
+    if (!sortDirty && sortCache) return sortCache;
+
+    document.getElementById('list-container').innerHTML =
+      `<div class="sort-loading"><div class="sort-spinner"></div> Sortiere clever...</div>`;
+
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      const res = await fetch(SORT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({ artikel: offeneArtikel })
+      });
+      const data = await res.json();
+      sortCache = data;
+      sortDirty = false;
+      return data;
+    } catch(e) {
+      return { gruppen: [] };
+    }
+  }
+
+  // ── RENDER ────────────────────────────────────────────────
+  async function renderList() {
+    const container = document.getElementById('list-container');
+    const offen     = items.filter(i => !i.erledigt);
+    const erledigt  = items.filter(i => i.erledigt);
+
+    document.getElementById('item-count').textContent = offen.length + ' Artikel';
+    document.getElementById('clear-btn').style.display = erledigt.length > 0 ? 'block' : 'none';
+
+    if (items.length === 0) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">🛒</div><div class="empty-text">Die Liste ist leer — füge etwas hinzu!</div></div>`;
+      return;
+    }
+
+    if (sortMode === 'smart' && offen.length > 0) {
+      const sortierung = await holeSortierung();
+      let html = '';
+
+      if (sortierung.gruppen && sortierung.gruppen.length > 0) {
+        // Sortierte Gruppen
+        for (const gruppe of sortierung.gruppen) {
+          if (!gruppe.artikel || gruppe.artikel.length === 0) continue;
+          html += `<div class="gruppe">
+            <div class="gruppe-header">
+              <span class="gruppe-emoji">${gruppe.emoji}</span>
+              <span class="gruppe-name">${gruppe.name}</span>
+            </div>`;
+
+          for (const artikelName of gruppe.artikel) {
+            // Item aus der DB finden (case-insensitive)
+            const item = items.find(i => !i.erledigt && i.text.toLowerCase() === artikelName.toLowerCase())
+                      || items.find(i => !i.erledigt && i.text.toLowerCase().includes(artikelName.toLowerCase()));
+            if (!item) continue;
+            html += renderItemHtml(item);
+          }
+          html += `</div>`;
+        }
+      } else {
+        // Fallback: normal rendern
+        offen.forEach(item => { html += renderItemHtml(item); });
+      }
+
+      // Erledigte immer am Ende
+      if (erledigt.length > 0) {
+        html += `<div class="gruppe">
+          <div class="gruppe-header"><span class="gruppe-emoji">✅</span><span class="gruppe-name">Erledigt</span></div>`;
+        erledigt.forEach(item => { html += renderItemHtml(item); });
+        html += `</div>`;
+      }
+
+      container.innerHTML = html;
+
+    } else {
+      // Normaler Modus
+      let html = '';
+      [...offen, ...erledigt].forEach(item => { html += renderItemHtml(item); });
+      container.innerHTML = html;
+    }
+  }
+
+  function renderItemHtml(item) {
+    const time = new Date(item.created_at).toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
+    return `<div class="item-card ${item.erledigt ? 'done' : ''}" id="item-${item.id}">
+      <button class="check-btn" onclick="toggleItem('${item.id}', ${item.erledigt})">${item.erledigt ? '✓' : ''}</button>
+      <span class="item-text">${escapeHtml(item.text)}</span>
+      <span class="item-time">${time}</span>
+      <button class="delete-btn" onclick="deleteItem('${item.id}')">✕</button>
+    </div>`;
+  }
+
+  // ── ADD ITEM ──────────────────────────────────────────────
+  async function addItem(text) {
+    const input = document.getElementById('item-input');
+    const value = (text || input.value).trim();
+    if (!value) return;
+    input.value = '';
+    const { data, error } = await sb.from('einkaufsliste')
+      .insert({ text: value, erledigt: false, user_id: userId }).select().single();
+    if (error) { console.error(error); return; }
+    items.push(data);
+    sortDirty = true;
+    renderList();
+  }
+
+  // ── TOGGLE ITEM ───────────────────────────────────────────
+  async function toggleItem(id, currentState) {
+    const { error } = await sb.from('einkaufsliste')
+      .update({ erledigt: !currentState }).eq('id', id).eq('user_id', userId);
+    if (error) return;
+    const item = items.find(i => i.id == id);
+    if (item) item.erledigt = !currentState;
+    renderList();
+  }
+
+  // ── DELETE ITEM ───────────────────────────────────────────
+  async function deleteItem(id) {
+    const { error } = await sb.from('einkaufsliste')
+      .delete().eq('id', id).eq('user_id', userId);
+    if (error) return;
+    items = items.filter(i => i.id != id);
+    sortDirty = true;
+    renderList();
+  }
+
+  // ── CLEAR DONE ────────────────────────────────────────────
+  async function clearDone() {
+    const { error } = await sb.from('einkaufsliste')
+      .delete().eq('erledigt', true).eq('user_id', userId);
+    if (error) return;
+    items = items.filter(i => !i.erledigt);
+    renderList();
+  }
+
+  function escapeHtml(text) {
+    return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  document.getElementById('item-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addItem();
+  });
+
+
+</script>
+</body>
+</html>
